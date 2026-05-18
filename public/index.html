@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WxChat</title>
+<script src="/socket.io/socket.io.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:       #0d1117;
+  --bg2:      #161b22;
+  --bg3:      #1c2330;
+  --border:   #2a3441;
+  --border2:  #374354;
+  --text:     #cdd9e5;
+  --text2:    #768da3;
+  --text3:    #4d6070;
+  --green:    #3fb950;
+  --green2:   #1a4428;
+  --blue:     #58a6ff;
+  --blue2:    #1c3557;
+  --amber:    #f0a22e;
+  --amber2:   #3d2a0a;
+  --red:      #f85149;
+  --red2:     #3d1a18;
+  --purple:   #bc8cff;
+  --tor:      #ff4444;
+  --tor2:     #3d0f0f;
+  --svr:      #f0a22e;
+  --svr2:     #3a2208;
+  --watch:    #ffdd57;
+  --watch2:   #2e2900;
+  --mono:     'Share Tech Mono', monospace;
+  --sans:     'Barlow', sans-serif;
+  --cond:     'Barlow Condensed', sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 14px; overflow: hidden; }
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+/* ══════════════ LOGIN ══════════════ */
+#login {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  height: 100vh; gap: 0;
+}
+.login-box {
+  background: var(--bg2); border: 1px solid var(--border);
+  width: 340px; overflow: hidden;
+}
+.login-header {
+  background: var(--bg3); border-bottom: 1px solid var(--border);
+  padding: 14px 20px;
+  display: flex; align-items: center; gap: 10px;
+}
+.login-header .wx-icon {
+  width: 28px; height: 28px; background: var(--green); border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; color: #000; font-weight: 700; font-family: var(--mono);
+}
+.login-header h1 { font-family: var(--cond); font-size: 18px; font-weight: 700; letter-spacing: 1px; color: var(--text); }
+.login-header span { font-family: var(--mono); font-size: 11px; color: var(--text3); margin-left: auto; }
+.login-body { padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+.login-body label { font-size: 11px; color: var(--text2); font-family: var(--mono); text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 4px; }
+.login-body input, .login-body select {
+  width: 100%; background: var(--bg); border: 1px solid var(--border2);
+  color: var(--text); padding: 8px 10px; font-size: 13px; font-family: var(--mono);
+  outline: none; appearance: none;
+}
+.login-body input:focus, .login-body select:focus { border-color: var(--green); }
+.login-body select { cursor: pointer; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23768da3'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; padding-right: 28px; }
+#join-btn {
+  width: 100%; padding: 10px; background: var(--green); color: #000;
+  border: none; font-family: var(--cond); font-size: 15px; font-weight: 700;
+  letter-spacing: 1px; cursor: pointer; text-transform: uppercase; margin-top: 4px;
+  transition: opacity 0.15s;
+}
+#join-btn:hover { opacity: 0.85; }
+#login-error { font-size: 12px; color: var(--red); font-family: var(--mono); text-align: center; display: none; }
+.login-footer { padding: 10px 20px 16px; font-size: 11px; color: var(--text3); font-family: var(--mono); text-align: center; border-top: 1px solid var(--border); }
+
+/* ══════════════ APP SHELL ══════════════ */
+#app { display: none; height: 100vh; flex-direction: column; }
+
+/* ── TOPBAR ── */
+#topbar {
+  background: var(--bg2); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 0; flex-shrink: 0; height: 38px;
+}
+#topbar-brand {
+  display: flex; align-items: center; gap: 8px; padding: 0 16px;
+  border-right: 1px solid var(--border); height: 100%;
+}
+.brand-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 6px var(--green); flex-shrink: 0; }
+#topbar-brand h2 { font-family: var(--cond); font-size: 16px; font-weight: 700; letter-spacing: 2px; color: var(--text); text-transform: uppercase; }
+#topbar-status {
+  display: flex; align-items: center; gap: 16px; padding: 0 16px; flex: 1;
+  font-family: var(--mono); font-size: 11px; color: var(--text3);
+}
+#topbar-clock { font-family: var(--mono); font-size: 12px; color: var(--amber); letter-spacing: 1px; }
+#topbar-me {
+  margin-left: auto; padding: 0 16px; border-left: 1px solid var(--border);
+  font-family: var(--mono); font-size: 11px; color: var(--text2); height: 100%;
+  display: flex; align-items: center; gap: 8px;
+}
+#topbar-me .me-callsign { color: var(--green); font-weight: 600; }
+#topbar-me .me-role { color: var(--text3); }
+#online-pill {
+  background: var(--bg3); border: 1px solid var(--border); padding: 2px 8px;
+  font-size: 11px; color: var(--green); font-family: var(--mono);
+}
+
+/* ── ALERT BAR ── */
+#alertbar {
+  background: var(--tor2); border-bottom: 2px solid var(--tor);
+  padding: 5px 16px; font-family: var(--mono); font-size: 11px;
+  color: var(--tor); display: none; align-items: center; gap: 10px;
+  animation: pulse-border 1.5s infinite;
+}
+@keyframes pulse-border { 0%,100%{border-bottom-color:var(--tor)} 50%{border-bottom-color:transparent} }
+#alertbar .alert-label { font-weight: 700; letter-spacing: 1px; }
+#alertbar .alert-text { color: #ffaaaa; }
+
+/* ── MAIN LAYOUT ── */
+#main { display: flex; flex: 1; overflow: hidden; }
+
+/* ── SIDEBAR ── */
+#sidebar {
+  width: 180px; flex-shrink: 0; background: var(--bg2);
+  border-right: 1px solid var(--border); display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.sidebar-section { border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.sidebar-head {
+  padding: 6px 10px; font-family: var(--mono); font-size: 10px;
+  color: var(--text3); text-transform: uppercase; letter-spacing: 1px;
+  background: var(--bg3);
+}
+.sidebar-nav-item {
+  display: flex; align-items: center; gap: 8px; padding: 7px 12px;
+  font-size: 13px; color: var(--text2); cursor: pointer;
+  border-left: 2px solid transparent; transition: all 0.1s;
+}
+.sidebar-nav-item:hover { background: var(--bg3); color: var(--text); }
+.sidebar-nav-item.active { color: var(--green); border-left-color: var(--green); background: rgba(63,185,80,0.06); }
+.sidebar-nav-item .nav-icon { font-size: 13px; width: 16px; text-align: center; }
+.sidebar-nav-item .nav-badge {
+  margin-left: auto; background: var(--red); color: #fff;
+  font-size: 10px; font-family: var(--mono); padding: 1px 5px; min-width: 18px; text-align: center;
+}
+
+#users-list { flex: 1; overflow-y: auto; }
+.user-item {
+  display: flex; align-items: center; gap: 8px; padding: 5px 10px;
+  font-size: 12px; border-bottom: 1px solid var(--border);
+}
+.user-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
+.user-callsign { color: var(--text); font-family: var(--mono); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.user-role { font-size: 10px; color: var(--text3); font-family: var(--mono); white-space: nowrap; }
+
+/* ── CONTENT AREA ── */
+#content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.panel { display: none; flex-direction: column; flex: 1; overflow: hidden; }
+.panel.active { display: flex; }
+
+/* ── CHAT PANEL ── */
+#chat-log {
+  flex: 1; overflow-y: auto; padding: 8px 0;
+  display: flex; flex-direction: column;
+}
+.msg-row { padding: 3px 14px; display: flex; align-items: baseline; gap: 0; line-height: 1.5; }
+.msg-row:hover { background: rgba(255,255,255,0.02); }
+.msg-ts { font-family: var(--mono); font-size: 10px; color: var(--text3); min-width: 48px; flex-shrink: 0; }
+.msg-tag {
+  font-family: var(--cond); font-size: 11px; font-weight: 600; letter-spacing: 0.5px;
+  padding: 1px 5px; margin-right: 6px; text-transform: uppercase; flex-shrink: 0;
+}
+.tag-spotter   { background: var(--blue2); color: var(--blue); }
+.tag-chaser    { background: #1f2d1a; color: var(--green); }
+.tag-nws       { background: #2a1a3d; color: var(--purple); }
+.tag-coord     { background: var(--amber2); color: var(--amber); }
+.tag-ham       { background: #1a2a3d; color: #7dd3fc; }
+.tag-observer  { background: var(--bg3); color: var(--text3); }
+.tag-member    { background: var(--bg3); color: var(--text3); }
+.msg-callsign { font-family: var(--mono); font-size: 12px; font-weight: 600; margin-right: 8px; flex-shrink: 0; }
+.cs-spotter  { color: var(--blue); }
+.cs-chaser   { color: var(--green); }
+.cs-nws      { color: var(--purple); }
+.cs-coord    { color: var(--amber); }
+.cs-ham      { color: #7dd3fc; }
+.cs-observer { color: var(--text2); }
+.cs-member   { color: var(--text2); }
+.cs-own      { color: #7ee787; }
+.msg-text { color: var(--text); font-size: 13px; word-break: break-word; }
+.msg-system-row { padding: 3px 14px; font-family: var(--mono); font-size: 11px; color: var(--text3); font-style: italic; }
+.msg-report-row {
+  margin: 4px 10px; padding: 6px 10px;
+  background: var(--amber2); border-left: 3px solid var(--amber);
+  font-size: 12px; color: var(--amber);
+}
+.msg-report-row .rpt-label { font-family: var(--cond); font-weight: 700; letter-spacing: 1px; font-size: 11px; }
+.msg-report-row .rpt-detail { color: #d4a04a; font-family: var(--mono); font-size: 11px; }
+
+#input-row {
+  border-top: 1px solid var(--border); padding: 8px 10px;
+  display: flex; gap: 8px; background: var(--bg2); flex-shrink: 0;
+}
+#input-row .prompt { font-family: var(--mono); font-size: 12px; color: var(--green); padding: 7px 0; flex-shrink: 0; }
+#chat-input {
+  flex: 1; background: var(--bg); border: 1px solid var(--border2);
+  color: var(--text); font-family: var(--mono); font-size: 13px;
+  padding: 6px 10px; outline: none;
+}
+#chat-input:focus { border-color: var(--green); }
+#chat-send {
+  background: var(--green); color: #000; border: none;
+  font-family: var(--cond); font-size: 13px; font-weight: 700;
+  padding: 6px 16px; cursor: pointer; text-transform: uppercase; letter-spacing: 1px;
+  transition: opacity 0.15s;
+}
+#chat-send:hover { opacity: 0.85; }
+
+/* ── ALERTS PANEL ── */
+#alerts-list { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+.alert-card { border: 1px solid; padding: 10px 12px; }
+.alert-card.tor { background: var(--tor2); border-color: var(--tor); }
+.alert-card.svr { background: var(--svr2); border-color: var(--svr); }
+.alert-card.watch { background: var(--watch2); border-color: var(--watch); }
+.alert-card.stmt { background: var(--bg3); border-color: var(--border2); }
+.alert-card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+.alert-type { font-family: var(--cond); font-size: 14px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+.alert-card.tor .alert-type  { color: var(--tor); }
+.alert-card.svr .alert-type  { color: var(--svr); }
+.alert-card.watch .alert-type{ color: var(--watch); }
+.alert-card.stmt .alert-type { color: var(--text2); }
+.alert-expires { font-family: var(--mono); font-size: 10px; color: var(--text3); margin-left: auto; }
+.alert-body { font-size: 12px; color: var(--text2); line-height: 1.6; }
+.alert-source { font-family: var(--mono); font-size: 10px; color: var(--text3); margin-top: 5px; }
+.no-alerts { padding: 30px; text-align: center; font-family: var(--mono); font-size: 12px; color: var(--text3); }
+
+/* ── REPORTS PANEL ── */
+#reports-panel { display: flex; flex-direction: column; overflow: hidden; }
+#reports-list { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+.report-card {
+  background: var(--bg2); border: 1px solid var(--border);
+  display: flex; gap: 10px; padding: 8px 10px;
+}
+.report-type-col { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 54px; }
+.rtype-badge {
+  font-family: var(--cond); font-size: 11px; font-weight: 700;
+  padding: 3px 6px; text-align: center; text-transform: uppercase; letter-spacing: 0.5px; width: 100%;
+}
+.rtype-Tornado { background: var(--tor2); color: var(--tor); border: 1px solid var(--tor); }
+.rtype-Hail    { background: var(--blue2); color: var(--blue); border: 1px solid var(--blue); }
+.rtype-Wind    { background: var(--bg3); color: var(--text2); border: 1px solid var(--border2); }
+.rtype-Rain    { background: #0d2a1f; color: #4ade80; border: 1px solid #1a5c38; }
+.rtype-Snow    { background: #1a2a3d; color: #bae6fd; border: 1px solid #2a4a6d; }
+.rtype-Other   { background: var(--bg3); color: var(--text3); border: 1px solid var(--border); }
+.report-meta { font-family: var(--mono); font-size: 10px; color: var(--text3); }
+.report-content { flex: 1; }
+.report-header { display: flex; align-items: baseline; gap: 8px; margin-bottom: 3px; }
+.report-callsign { font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--green); }
+.report-role { font-size: 10px; color: var(--text3); font-family: var(--mono); }
+.report-time { font-size: 10px; color: var(--text3); font-family: var(--mono); margin-left: auto; }
+.report-location { font-size: 12px; color: var(--amber); font-family: var(--mono); margin-bottom: 3px; }
+.report-notes { font-size: 12px; color: var(--text); line-height: 1.5; }
+.report-mag { font-size: 11px; color: var(--text2); margin-top: 2px; }
+
+/* ── REPORT FORM ── */
+#report-form {
+  border-top: 1px solid var(--border); padding: 10px; background: var(--bg2);
+  display: flex; flex-direction: column; gap: 8px; flex-shrink: 0;
+}
+.form-head { font-family: var(--cond); font-size: 13px; font-weight: 700; color: var(--text2); text-transform: uppercase; letter-spacing: 1px; }
+.form-row { display: flex; gap: 8px; }
+.form-group { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+.form-group label { font-family: var(--mono); font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 1px; }
+.form-group input, .form-group select, .form-group textarea {
+  background: var(--bg); border: 1px solid var(--border2); color: var(--text);
+  padding: 6px 8px; font-size: 12px; font-family: var(--mono); outline: none;
+  appearance: none; resize: none;
+}
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--amber); }
+.form-group select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23768da3'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 8px center; padding-right: 24px;
+}
+#submit-rpt {
+  background: var(--amber); color: #000; border: none;
+  font-family: var(--cond); font-size: 13px; font-weight: 700;
+  padding: 8px 20px; cursor: pointer; text-transform: uppercase; letter-spacing: 1px;
+  align-self: flex-end; transition: opacity 0.15s;
+}
+#submit-rpt:hover { opacity: 0.85; }
+#rpt-error { font-size: 11px; color: var(--red); font-family: var(--mono); display: none; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login">
+  <div class="login-box">
+    <div class="login-header">
+      <div class="wx-icon">WX</div>
+      <h1>WxChat</h1>
+      <span>v1.0</span>
+    </div>
+    <div class="login-body">
+      <div>
+        <label>Callsign / Handle</label>
+        <input id="cs-input" type="text" placeholder="e.g. KG5ABC  wx_dan  SpotterMike" maxlength="20" autocomplete="off" spellcheck="false">
+      </div>
+      <div>
+        <label>Role</label>
+        <select id="role-input">
+          <option value="Spotter">Spotter</option>
+          <option value="Chaser">Chaser</option>
+          <option value="Coordinator">Coordinator</option>
+          <option value="NWS">NWS</option>
+          <option value="Ham">Ham Operator</option>
+          <option value="Observer">Observer</option>
+          <option value="Member">Member</option>
+        </select>
+      </div>
+      <div id="login-error"></div>
+      <button id="join-btn">Connect to Channel</button>
+    </div>
+    <div class="login-footer">WxChat · Local Network Edition</div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <!-- Topbar -->
+  <div id="topbar">
+    <div id="topbar-brand">
+      <span class="brand-dot"></span>
+      <h2>WxChat</h2>
+    </div>
+    <div id="topbar-status">
+      <span id="topbar-clock">00:00:00Z</span>
+      <span id="online-pill">0 online</span>
+    </div>
+    <div id="topbar-me">
+      <span class="me-callsign" id="me-callsign"></span>
+      <span class="me-role" id="me-role"></span>
+    </div>
+  </div>
+
+  <!-- Alert bar (hidden until tor warning) -->
+  <div id="alertbar">
+    <span class="alert-label">⚡ TORNADO WARNING</span>
+    <span class="alert-text" id="alertbar-text"></span>
+  </div>
+
+  <!-- Main -->
+  <div id="main">
+    <!-- Sidebar -->
+    <div id="sidebar">
+      <div class="sidebar-section">
+        <div class="sidebar-head">Channel</div>
+        <div class="sidebar-nav-item active" data-panel="chat-panel">
+          <span class="nav-icon">▶</span> Chat
+        </div>
+        <div class="sidebar-nav-item" data-panel="alerts-panel">
+          <span class="nav-icon">⚠</span> Alerts
+          <span class="nav-badge" id="alerts-badge" style="display:none">0</span>
+        </div>
+        <div class="sidebar-nav-item" data-panel="reports-panel">
+          <span class="nav-icon">◉</span> Reports
+          <span class="nav-badge" id="reports-badge" style="display:none">0</span>
+        </div>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-head">Online — <span id="user-count">0</span></div>
+      </div>
+      <div id="users-list"></div>
+    </div>
+
+    <!-- Content -->
+    <div id="content">
+
+      <!-- Chat Panel -->
+      <div class="panel active" id="chat-panel">
+        <div id="chat-log"></div>
+        <div id="input-row">
+          <span class="prompt">&gt;</span>
+          <input id="chat-input" type="text" placeholder="Type a message and press Enter…" maxlength="500" autocomplete="off" spellcheck="false">
+          <button id="chat-send">Send</button>
+        </div>
+      </div>
+
+      <!-- Alerts Panel -->
+      <div class="panel" id="alerts-panel">
+        <div id="alerts-list">
+          <div class="alert-card tor">
+            <div class="alert-card-header">
+              <span class="alert-type">⚡ Tornado Warning</span>
+              <span class="alert-expires">Expires 7:45 PM CDT</span>
+            </div>
+            <div class="alert-body">A tornado warning is in effect for Payne and Lincoln counties. A confirmed tornado is moving northeast at 35 mph. Take shelter immediately.</div>
+            <div class="alert-source">NWS Norman · OUN</div>
+          </div>
+          <div class="alert-card svr">
+            <div class="alert-card-header">
+              <span class="alert-type">▲ Severe Thunderstorm Warning</span>
+              <span class="alert-expires">Expires 8:15 PM CDT</span>
+            </div>
+            <div class="alert-body">Severe thunderstorm capable of 70 mph winds and golf ball size hail. Located near Stillwater, moving east at 45 mph.</div>
+            <div class="alert-source">NWS Norman · OUN</div>
+          </div>
+          <div class="alert-card watch">
+            <div class="alert-card-header">
+              <span class="alert-type">◈ Tornado Watch #221</span>
+              <span class="alert-expires">Until Midnight CDT</span>
+            </div>
+            <div class="alert-body">Conditions are favorable for supercell thunderstorms capable of strong tornadoes across central and north-central Oklahoma.</div>
+            <div class="alert-source">SPC · Storm Prediction Center</div>
+          </div>
+          <div class="alert-card stmt">
+            <div class="alert-card-header">
+              <span class="alert-type">◦ Special Weather Statement</span>
+              <span class="alert-expires">Until 10:00 AM CDT</span>
+            </div>
+            <div class="alert-body">Areas of dense fog with near-zero visibility possible through 10 AM CDT along and south of I-40.</div>
+            <div class="alert-source">NWS Norman · OUN</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Reports Panel -->
+      <div class="panel" id="reports-panel">
+        <div id="reports-list"></div>
+        <div id="report-form">
+          <div class="form-head">Submit Storm Report</div>
+          <div class="form-row">
+            <div class="form-group" style="max-width:120px">
+              <label>Type</label>
+              <select id="rpt-type">
+                <option>Tornado</option>
+                <option>Hail</option>
+                <option>Wind</option>
+                <option>Rain</option>
+                <option>Snow</option>
+                <option>Other</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Location</label>
+              <input id="rpt-loc" type="text" placeholder="3mi NE Guthrie OK" autocomplete="off">
+            </div>
+            <div class="form-group" style="max-width:140px">
+              <label>Magnitude (opt)</label>
+              <input id="rpt-mag" type="text" placeholder="1.75in, 68mph…" autocomplete="off">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group" style="flex:1">
+              <label>Description</label>
+              <textarea id="rpt-notes" rows="2" placeholder="What did you observe? Include any damage…"></textarea>
+            </div>
+            <div style="display:flex;flex-direction:column;justify-content:flex-end;gap:6px">
+              <span id="rpt-error"></span>
+              <button id="submit-rpt">Submit ▶</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<script>
+const socket = io();
+let myCallsign = '', myRole = '';
+let newReports = 0, newAlerts = 0;
+let currentPanel = 'chat-panel';
+
+// ── CLOCK ──
+function updateClock() {
+  const now = new Date();
+  const h = String(now.getUTCHours()).padStart(2,'0');
+  const m = String(now.getUTCMinutes()).padStart(2,'0');
+  const s = String(now.getUTCSeconds()).padStart(2,'0');
+  document.getElementById('topbar-clock').textContent = h+':'+m+':'+s+'Z';
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ── LOGIN ──
+document.getElementById('join-btn').addEventListener('click', doJoin);
+document.getElementById('cs-input').addEventListener('keydown', e => { if(e.key==='Enter') doJoin(); });
+
+function doJoin() {
+  const cs = document.getElementById('cs-input').value.trim();
+  if (!cs) { document.getElementById('cs-input').focus(); return; }
+  socket.emit('join', { callsign: cs, role: document.getElementById('role-input').value });
+}
+
+socket.on('join_error', msg => {
+  const el = document.getElementById('login-error');
+  el.textContent = msg; el.style.display = 'block';
+});
+
+socket.on('join_ok', ({ callsign, role }) => {
+  myCallsign = callsign; myRole = role;
+  document.getElementById('login').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  document.getElementById('me-callsign').textContent = callsign;
+  document.getElementById('me-role').textContent = role;
+  document.getElementById('chat-input').focus();
+});
+
+// ── HISTORY ──
+socket.on('history', ({ messages, reports }) => {
+  messages.forEach(renderMessage);
+  reports.forEach(renderReport);
+});
+
+// ── MESSAGES ──
+socket.on('message', renderMessage);
+
+function renderMessage(msg) {
+  const log = document.getElementById('chat-log');
+  const ts = fmtTime(msg.ts);
+
+  if (msg.type === 'system') {
+    const div = document.createElement('div');
+    div.className = 'msg-system-row';
+    div.textContent = '── ' + ts + ' · ' + msg.text + ' ──';
+    log.appendChild(div);
+  } else if (msg.type === 'report_notice') {
+    const div = document.createElement('div');
+    div.className = 'msg-report-row';
+    div.innerHTML = `<span class="rpt-label">STORM REPORT</span> <span class="rpt-detail">${esc(msg.callsign)} submitted ${esc(msg.reportType)} near ${esc(msg.location)}</span>`;
+    log.appendChild(div);
+  } else {
+    const isOwn = msg.callsign === myCallsign;
+    const roleKey = (msg.role || 'Member').toLowerCase().replace(' ','');
+    const div = document.createElement('div');
+    div.className = 'msg-row';
+    div.innerHTML = `<span class="msg-ts">${ts}</span><span class="msg-tag tag-${roleKey}">${esc(msg.role)}</span><span class="msg-callsign cs-${isOwn ? 'own' : roleKey}">${esc(msg.callsign)}</span><span class="msg-text">${esc(msg.text)}</span>`;
+    log.appendChild(div);
+  }
+  log.scrollTop = log.scrollHeight;
+}
+
+// ── USERS ──
+socket.on('users', users => {
+  document.getElementById('user-count').textContent = users.length;
+  document.getElementById('online-pill').textContent = users.length + ' online';
+  const list = document.getElementById('users-list');
+  list.innerHTML = '';
+  users.sort((a,b) => a.callsign.localeCompare(b.callsign)).forEach(u => {
+    const div = document.createElement('div');
+    div.className = 'user-item';
+    div.innerHTML = `<span class="user-dot"></span><div style="flex:1;overflow:hidden"><div class="user-callsign">${esc(u.callsign)}</div><div class="user-role">${esc(u.role)}</div></div>`;
+    list.appendChild(div);
+  });
+});
+
+// ── REPORTS ──
+socket.on('new_report', report => {
+  renderReport(report);
+  if (currentPanel !== 'reports-panel') {
+    newReports++;
+    const b = document.getElementById('reports-badge');
+    b.textContent = newReports; b.style.display = '';
+  }
+});
+
+function renderReport(r) {
+  const list = document.getElementById('reports-list');
+  const div = document.createElement('div');
+  div.className = 'report-card';
+  div.innerHTML = `
+    <div class="report-type-col">
+      <span class="rtype-badge rtype-${r.type}">${r.type}</span>
+      <span class="report-meta">${fmtTime(r.ts)}</span>
+    </div>
+    <div class="report-content">
+      <div class="report-header">
+        <span class="report-callsign">${esc(r.callsign)}</span>
+        <span class="report-role">${esc(r.role)}</span>
+        <span class="report-time">${fmtTime(r.ts)}</span>
+      </div>
+      <div class="report-location">📍 ${esc(r.location)}</div>
+      <div class="report-notes">${esc(r.notes)}</div>
+      ${r.magnitude ? `<div class="report-mag">Magnitude: ${esc(r.magnitude)}</div>` : ''}
+    </div>`;
+  list.insertBefore(div, list.firstChild);
+}
+
+// ── SUBMIT REPORT ──
+document.getElementById('submit-rpt').addEventListener('click', submitReport);
+
+function submitReport() {
+  const type = document.getElementById('rpt-type').value;
+  const loc  = document.getElementById('rpt-loc').value.trim();
+  const notes = document.getElementById('rpt-notes').value.trim();
+  const mag  = document.getElementById('rpt-mag').value.trim();
+  const err  = document.getElementById('rpt-error');
+  if (!loc || !notes) { err.textContent = 'Location and description required'; err.style.display=''; return; }
+  err.style.display = 'none';
+  socket.emit('report', { type, location: loc, notes, magnitude: mag });
+  document.getElementById('rpt-loc').value = '';
+  document.getElementById('rpt-notes').value = '';
+  document.getElementById('rpt-mag').value = '';
+  // Switch to chat so they see the report notice
+  switchPanel('chat-panel');
+  document.querySelectorAll('.sidebar-nav-item').forEach(n => {
+    n.classList.toggle('active', n.dataset.panel === 'chat-panel');
+  });
+}
+
+// ── CHAT SEND ──
+document.getElementById('chat-send').addEventListener('click', sendChat);
+document.getElementById('chat-input').addEventListener('keydown', e => { if(e.key==='Enter') sendChat(); });
+
+function sendChat() {
+  const input = document.getElementById('chat-input');
+  const txt = input.value.trim();
+  if (!txt) return;
+  socket.emit('chat', txt);
+  input.value = '';
+}
+
+// ── NAV ──
+document.querySelectorAll('.sidebar-nav-item').forEach(item => {
+  item.addEventListener('click', () => {
+    const panelId = item.dataset.panel;
+    document.querySelectorAll('.sidebar-nav-item').forEach(n => n.classList.remove('active'));
+    item.classList.add('active');
+    switchPanel(panelId);
+  });
+});
+
+function switchPanel(id) {
+  currentPanel = id;
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if (id === 'reports-panel') {
+    newReports = 0;
+    document.getElementById('reports-badge').style.display = 'none';
+  }
+  if (id === 'alerts-panel') {
+    newAlerts = 0;
+    document.getElementById('alerts-badge').style.display = 'none';
+  }
+  if (id === 'chat-panel') {
+    document.getElementById('chat-input').focus();
+    const log = document.getElementById('chat-log');
+    log.scrollTop = log.scrollHeight;
+  }
+}
+
+// ── HELPERS ──
+function fmtTime(ts) {
+  const d = new Date(ts);
+  return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+}
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+</script>
+</body>
+</html>
